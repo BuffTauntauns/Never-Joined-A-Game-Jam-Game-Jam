@@ -53,6 +53,8 @@ class Game():
             "shoot": self.bind_key(self.settings["controls"]["shoot"])
         }
 
+        self.show_hitboxes = False
+
         self.dt = 1/60
         self.event_counter = 1
 
@@ -100,14 +102,16 @@ class Game():
                     pos = (self.screen.get_size()[0], 100)
                     vel = -self.bird_vel
                     img = self.bird_left_img
-                bird = Bird(img, pos, vel)
+                bird = Bird(img, pos, vel, self.settings["sprite_scale"])
                 bird.add(self.all_sprites, self.birds)
             if event.type == pg.KEYDOWN:
                 key = event.key
                 if key == self.controls["shoot"]:
                     cat_pos = self.cat.get_pos()
-                    laser = Laser(self.laser_beam_img, cat_pos, self.laser_vel)
+                    laser = Laser(self.laser_beam_img, cat_pos, self.laser_vel, self.settings["sprite_scale"])
                     laser.add(self.all_sprites, self.lasers)
+                if key == loc.K_h:
+                    self.show_hitboxes = True
         keys = pg.key.get_pressed()
         left = False
         right = False
@@ -119,10 +123,8 @@ class Game():
 
     
     def screen_update(self):
-        collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True)
+        collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
         kills = 0
-        if collisions:
-            print(collisions)
         for laser in collisions:
             kills += len(collisions[laser])
         self.score += kills
@@ -131,10 +133,18 @@ class Game():
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
         self.all_sprites.draw(self.screen)
+        if self.show_hitboxes:
+            for bird in self.birds:
+                bird.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
+            for laser in self.lasers:
+                laser.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
         pg.display.flip()
     
     def bind_key(self, name):
         return pg.key.key_code(name)
+
+    def collision_hitbox(self, sprite1, sprite2):
+        return sprite1.hitbox.colliderect(sprite2.hitbox)
 
 
 class Cat(pg.sprite.Sprite):
@@ -165,33 +175,48 @@ class Cat(pg.sprite.Sprite):
 
 class Bird(pg.sprite.Sprite):
     
-    def __init__(self, image, pos, vel):
+    def __init__(self, image, pos, vel, scale):
         super().__init__()
         self.image = image
         self.pos = pg.Vector2(pos)
         self.rect: pg.Rect = self.image.get_rect()
         self.rect.center = self.pos
         self.vel = vel
+        self.hitbox_offset = pg.Vector2(1 * scale, 6 * scale)
+        self.hitbox = pg.Rect(self.rect.topleft, (14 * scale, 5 * scale))
     
     def update(self, dt):
         self.pos.x += self.vel *dt
         self.rect.center = self.pos
+        self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
+    
+    def draw_hitbox(self, screen, color_hitbox, color_rect):
+        pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
+        pg.draw.rect(screen, color_rect, self.rect, 2)
 
 
 class Laser(pg.sprite.Sprite):
     
-    def __init__(self, image, pos, vel):
+    def __init__(self, image, pos, vel, scale):
         super().__init__()
         self.image = image
         self.pos = pg.Vector2(pos)
         self.rect: pg.Rect = self.image.get_rect()
         self.rect.center = self.pos
         self.vel = pg.Vector2(vel)
+        self.hitbox_offset = pg.Vector2(7 * scale, 4 * scale)
+        self.hitbox = pg.Rect(self.rect.topleft, (5 * scale, 3 * scale))
     
     def update(self, dt):
         self.pos.y += self.vel.y * dt
         self.pos.x += self.vel.x * dt
         self.rect.center = self.pos
+        self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
+        #self.hitbox.center = self.pos
+    
+    def draw_hitbox(self, screen, color_hitbox, color_rect):
+        pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
+        pg.draw.rect(screen, color_rect, self.rect, 2)
 
 
 if __name__ == "__main__":
