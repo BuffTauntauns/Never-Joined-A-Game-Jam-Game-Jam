@@ -40,6 +40,7 @@ class Game():
         # create sprite groups
         self.all_sprites = pg.sprite.Group()
         self.birds = pg.sprite.Group()
+        self.lasers = pg.sprite.Group()
 
         # create cat
         self.cat = Cat(self.cat_normal_img, (300, 450), vel=200)
@@ -67,9 +68,10 @@ class Game():
         self.game_state = "playing"
         self.laser_vel = (0, -300)
         self.bird_vel = 50
+        self.score = 0
         self.BIRD_SPAWN = pg.USEREVENT + self.event_counter
         self.event_counter += 1
-        pg.time.set_timer(self.BIRD_SPAWN, 3000)
+        pg.time.set_timer(self.BIRD_SPAWN, 4000)
 
     def run(self):
         while True:
@@ -105,7 +107,7 @@ class Game():
                 if key == self.controls["shoot"]:
                     cat_pos = self.cat.get_pos()
                     laser = Laser(self.laser_beam_img, cat_pos, self.laser_vel)
-                    laser.add(self.all_sprites)
+                    laser.add(self.all_sprites, self.lasers)
         keys = pg.key.get_pressed()
         left = False
         right = False
@@ -117,6 +119,13 @@ class Game():
 
     
     def screen_update(self):
+        collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True)
+        kills = 0
+        if collisions:
+            print(collisions)
+        for laser in collisions:
+            kills += len(collisions[laser])
+        self.score += kills
         self.all_sprites.update(self.dt)
 
     def screen_draw(self):
