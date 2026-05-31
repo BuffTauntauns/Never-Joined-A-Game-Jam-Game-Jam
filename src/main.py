@@ -36,6 +36,7 @@ class Game():
         self.laser_beam_img = self.load_image("images/laser.png", self.settings["sprite_scale"])
         self.bird_left_img = self.load_image("images/bird_left.png", self.settings["sprite_scale"])
         self.bird_right_img = self.load_image("images/bird_right.png", self.settings["sprite_scale"])
+        self.background_img = self.load_image("images/background.png", self.settings["sprite_scale"])
 
         # init fonts
         self.font_10 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
@@ -48,11 +49,17 @@ class Game():
         self.all_sprites = pg.sprite.Group()
         self.birds = pg.sprite.Group()
         self.lasers = pg.sprite.Group()
+        self.backgrounds = pg.sprite.Group()
 
         # create cat
         self.cat = Cat(self.cat_normal_img, (300, 450), vel=200)
         #self.cat.add(self.all_sprites)
         self.all_sprites.add(self.cat)
+
+        # create background
+        self.background_vel = -20
+        background = Background(self.background_img, (0, 0), self.background_vel)
+        background.add(self.backgrounds)
 
         self.controls = {
             "left": self.bind_key(self.settings["controls"]["left"]),
@@ -78,6 +85,7 @@ class Game():
         self.laser_vel = (0, -300)
         self.bird_vel = 50
         self.score = 0
+        self.background_vel = -20
         self.BIRD_SPAWN = pg.USEREVENT + self.event_counter
         self.event_counter += 1
         pg.time.set_timer(self.BIRD_SPAWN, 4000)
@@ -129,11 +137,25 @@ class Game():
         self.cat.move(left, right)
 
     def screen_update(self):
+        # Collision Laser, Bird
         collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
         kills = 0
         for laser in collisions:
             kills += len(collisions[laser])
         self.score += kills
+
+        # background
+        self.backgrounds.update(self.dt, self.screen_rect)
+        most_right = 0
+        for bg in self.backgrounds:
+            right = bg.get_right_x()
+            if right > most_right:
+                most_right = right
+        if most_right <= 850:
+            background = Background(self.background_img, (right, 0), self.background_vel)
+            background.add(self.backgrounds)
+
+        # sprites
         self.all_sprites.update(self.dt, self.screen_rect)
 
         # UI
@@ -143,6 +165,7 @@ class Game():
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
+        self.backgrounds.draw(self.screen)
         self.all_sprites.draw(self.screen)
         if self.show_hitboxes:
             for bird in self.birds:
@@ -235,6 +258,27 @@ class Laser(pg.sprite.Sprite):
     def draw_hitbox(self, screen, color_hitbox, color_rect):
         pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
         pg.draw.rect(screen, color_rect, self.rect, 2)
+
+
+class Background(pg.sprite.Sprite):
+
+    def __init__(self, image, pos, vel):
+        super().__init__()
+        self.image = image
+        self.pos = pg.Vector2(pos)
+        self.rect: pg.Rect = self.image.get_rect()
+        self.rect.topleft = self.pos
+        self.vel = vel
+
+    def update(self, dt, screen_rect):
+        self.pos.x += self.vel * dt
+        self.rect.topleft = self.pos
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+        
+    def get_right_x(self):
+        return self.rect.right
+
 
 
 if __name__ == "__main__":
