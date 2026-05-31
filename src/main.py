@@ -121,14 +121,13 @@ class Game():
             right = True
         self.cat.move(left, right)
 
-    
     def screen_update(self):
         collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
         kills = 0
         for laser in collisions:
             kills += len(collisions[laser])
         self.score += kills
-        self.all_sprites.update(self.dt)
+        self.all_sprites.update(self.dt, self.screen_rect)
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
@@ -159,7 +158,7 @@ class Cat(pg.sprite.Sprite):
         self.right = False
         self.vel = vel
     
-    def update(self, dt):
+    def update(self, dt, screen_rect):
         if self.left:
             self.pos.x -= self.vel * dt
         if self.right:
@@ -185,10 +184,12 @@ class Bird(pg.sprite.Sprite):
         self.hitbox_offset = pg.Vector2(1 * scale, 6 * scale)
         self.hitbox = pg.Rect(self.rect.topleft, (14 * scale, 5 * scale))
     
-    def update(self, dt):
+    def update(self, dt, screen_rect):
         self.pos.x += self.vel *dt
         self.rect.center = self.pos
         self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
     
     def draw_hitbox(self, screen, color_hitbox, color_rect):
         pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
@@ -207,12 +208,13 @@ class Laser(pg.sprite.Sprite):
         self.hitbox_offset = pg.Vector2(7 * scale, 4 * scale)
         self.hitbox = pg.Rect(self.rect.topleft, (5 * scale, 3 * scale))
     
-    def update(self, dt):
+    def update(self, dt, screen_rect):
         self.pos.y += self.vel.y * dt
         self.pos.x += self.vel.x * dt
         self.rect.center = self.pos
         self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
-        #self.hitbox.center = self.pos
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
     
     def draw_hitbox(self, screen, color_hitbox, color_rect):
         pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
