@@ -37,6 +37,13 @@ class Game():
         self.bird_left_img = self.load_image("images/bird_left.png", self.settings["sprite_scale"])
         self.bird_right_img = self.load_image("images/bird_right.png", self.settings["sprite_scale"])
 
+        # init fonts
+        self.font_10 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+        self.font_20 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+        self.font_30 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+        self.font_40 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+        self.font_50 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+
         # create sprite groups
         self.all_sprites = pg.sprite.Group()
         self.birds = pg.sprite.Group()
@@ -129,6 +136,11 @@ class Game():
         self.score += kills
         self.all_sprites.update(self.dt, self.screen_rect)
 
+        # UI
+        self.score_text = self.font_30.render(f"Score: {self.score}", True, pg.color.Color("black"))
+        self.score_rect = self.score_text.get_rect()
+        self.score_rect.topleft = (10, 10)
+
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
         self.all_sprites.draw(self.screen)
@@ -137,6 +149,10 @@ class Game():
                 bird.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
             for laser in self.lasers:
                 laser.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
+        
+        # UI
+        self.screen.blit(self.score_text, self.score_rect)
+
         pg.display.flip()
     
     def bind_key(self, name):
