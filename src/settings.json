@@ -1,0 +1,10 @@
+{
+  "fps": 60,
+  "volume": 1,
+  "sprite_scale": 5,
+  "controls": {
+    "left": "a",
+    "right": "d",
+    "shoot": "k"
+  }
+}
