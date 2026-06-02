@@ -5,6 +5,6 @@
   "controls": {
     "left": "a",
     "right": "d",
-    "shoot": "k"
+    "attack": "k"
   }
 }
