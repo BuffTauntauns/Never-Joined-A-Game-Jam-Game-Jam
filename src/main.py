@@ -1,6 +1,7 @@
 """
-After that: record presentation menu
-Then: attack mechanic
+attack countdown visualization
+record presentation menu
+Lieber schick machen und balancing, als jetzt auf krampf funktionen adden!! - ich will den ganzen process üben und fertig werden
 """
 
 from sys import exit
@@ -44,11 +45,12 @@ class Game():
         self.background_img = self.load_image("images/background.png", self.settings["sprite_scale"])
 
         # init fonts
-        self.font_10 = pg.font.Font(os.path.join(self.font_dir, "accidental_presidency.ttf"), 10)
-        self.font_20 = pg.font.Font(os.path.join(self.font_dir, "accidental_presidency.ttf"), 20)
-        self.font_30 = pg.font.Font(os.path.join(self.font_dir, "accidental_presidency.ttf"), 30)
-        self.font_40 = pg.font.Font(os.path.join(self.font_dir, "accidental_presidency.ttf"), 40)
-        self.font_50 = pg.font.Font(os.path.join(self.font_dir, "accidental_presidency.ttf"), 50)
+        self.font_10 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 10)
+        self.font_20 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 20)
+        self.font_25 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 25)
+        self.font_30 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
+        self.font_40 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 40)
+        self.font_50 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 50)
 
         self.menu_setup()
 
@@ -59,7 +61,7 @@ class Game():
         self.backgrounds = pg.sprite.Group()
 
         # create cat
-        self.cat = Cat(self.cat_normal_img, (300, 450), vel=200)
+        self.cat = Cat(self.cat_normal_img, (300, 455), vel=200)
         #self.cat.add(self.all_sprites)
         self.all_sprites.add(self.cat)
 
@@ -89,13 +91,15 @@ class Game():
 
     def set_init_game_state(self):
         self.game_state = "playing"
-        self.laser_vel = (0, -300)
-        self.bird_vel = 50
+        self.laser_vel = (0, -350)
+        self.bird_vel = 100
         self.score = 0
         self.background_vel = -20
         self.BIRD_SPAWN = pg.USEREVENT + self.event_counter
         self.event_counter += 1
-        pg.time.set_timer(self.BIRD_SPAWN, 4000)
+        self.timer_bird_spawn = Timer(2000, self.clk)
+        self.timer_attack = Timer(1500, self.clk)
+        self.attack_allowed = True
         for bird in self.birds:
             bird.kill()
         for laser in self.lasers:
@@ -110,12 +114,16 @@ class Game():
             if self.game_state == "playing":
                 self.change_game_state("playing")
                 if self.last_game_state != "playing":
-                    pass
+                    # resume timers
+                    pg.time.set_timer(self.BIRD_SPAWN, 1)
+                    pg.time.set_timer(self.LASER, 1)
                 self.playing()
             if self.game_state == "menu":
                 self.change_game_state("menu")
                 if self.last_game_state != "menu":
-                    pass
+                    # pause timers
+                    pg.time.set_timer(self.BIRD_SPAWN, 0)
+                    pg.time.set_timer(self.LASER, 0)
                 self.menu()
 
     def menu_setup(self):
@@ -125,51 +133,50 @@ class Game():
         self.menu_surf_rect = self.menu_surf.get_rect()
         self.menu_surf_rect.center = self.screen_rect.center
 
-        self.text_menu_title = self.get_text(self.font_50, "MENU", pg.color.Color("black"), (0, 15))
+        self.text_menu_title = self.get_text(self.font_40, "MENU", pg.color.Color("black"), (0, 20))
         self.text_menu_title[1].centerx = self.menu_size[0] / 2
         self.menu_text.append(self.text_menu_title)
 
-        self.text_controls = self.get_text(self.font_30, "Controls", pg.color.Color("black"), (0, 90))
+        self.text_controls = self.get_text(self.font_25, "Controls", pg.color.Color("black"), (0, 85))
         self.text_controls[1].right = self.menu_size[0] - 60
         self.menu_text.append(self.text_controls)
 
-        self.text_control_left = self.get_text(self.font_30, "Left", pg.color.Color("black"), (0, 120))
+        self.text_control_left = self.get_text(self.font_20, "Left", pg.color.Color("black"), (0, 120))
         self.text_control_left[1].left = self.menu_size[0] - 160
         self.menu_text.append(self.text_control_left)
 
-        self.text_control_right = self.get_text(self.font_30, "Right", pg.color.Color("black"), (0, 150))
+        self.text_control_right = self.get_text(self.font_20, "Right", pg.color.Color("black"), (0, 150))
         self.text_control_right[1].left = self.menu_size[0] - 160
         self.menu_text.append(self.text_control_right)
 
-        self.text_control_attack = self.get_text(self.font_30, "Attack", pg.color.Color("black"), (0, 180))
+        self.text_control_attack = self.get_text(self.font_20, "Attack", pg.color.Color("black"), (0, 180))
         self.text_control_attack[1].left = self.menu_size[0] - 160
         self.menu_text.append(self.text_control_attack)
 
-        self.text_restart = self.get_text(self.font_30, "Restart", pg.color.Color("black"), (0, 0))
+        self.text_restart = self.get_text(self.font_25, "Restart", pg.color.Color("black"), (0, 0))
         self.text_restart[1].bottom = self.menu_size[1] - 20
         self.text_restart[1].left = 30
         self.menu_text.append(self.text_restart)
 
-        self.text_resume = self.get_text(self.font_30, "Resume", pg.color.Color("black"), (0, 0))
+        self.text_resume = self.get_text(self.font_25, "Resume", pg.color.Color("black"), (0, 0))
         self.text_resume[1].bottom = self.menu_size[1] - 20
-        self.text_resume[1].centerx = self.menu_size[0] / 2
+        self.text_resume[1].centerx = self.menu_size[0] / 2 - 14
         self.menu_text.append(self.text_resume)
 
-        self.text_exit_game = self.get_text(self.font_30, "Exit Game", pg.color.Color("red"), (0, 0))
+        self.text_exit_game = self.get_text(self.font_25, "Exit Game", pg.color.Color("red4"), (0, 0))
         self.text_exit_game[1].bottom = self.menu_size[1] - 20
         self.text_exit_game[1].right = (self.menu_size[0]) - 30
         self.menu_text.append(self.text_exit_game)
     
     def menu(self):
-        pg.time.set_timer(self.BIRD_SPAWN, 0)
         while self.game_state == "menu":
-            self.text_control_left_button = self.get_text(self.font_30, self.settings["controls"]["left"], pg.color.Color("black"), (0, 120))
+            self.text_control_left_button = self.get_text(self.font_20, self.settings["controls"]["left"], pg.color.Color("black"), (0, 120))
             self.text_control_left_button[1].right = self.menu_size[0] - 50
 
-            self.text_control_right_button = self.get_text(self.font_30, self.settings["controls"]["right"], pg.color.Color("black"), (0, 150))
+            self.text_control_right_button = self.get_text(self.font_20, self.settings["controls"]["right"], pg.color.Color("black"), (0, 150))
             self.text_control_right_button[1].right = self.menu_size[0] - 50
 
-            self.text_control_attack_button = self.get_text(self.font_30, self.settings["controls"]["attack"], pg.color.Color("black"), (0, 180))
+            self.text_control_attack_button = self.get_text(self.font_20, self.settings["controls"]["attack"], pg.color.Color("black"), (0, 180))
             self.text_control_attack_button[1].right = self.menu_size[0] - 50
 
             # events
@@ -225,20 +232,23 @@ class Game():
                     img = self.bird_right_img
                 else:
                     pos = (self.screen.get_size()[0], 100)
-                    vel = -self.bird_vel
+                    vel = -self.bird_vel - random.randint(0, 150)
                     img = self.bird_left_img
                 bird = Bird(img, pos, vel, self.settings["sprite_scale"])
                 bird.add(self.all_sprites, self.birds)
+                pg.time.set_timer(self.BIRD_SPAWN, random.randint(3000, 4000))
             if event.type == pg.KEYDOWN:
                 key = event.key
-                if key == self.controls["attack"]:
+                if key == self.controls["attack"] and self.attack_allowed:
                     cat_pos = self.cat.get_pos()
                     laser = Laser(self.laser_beam_img, cat_pos, self.laser_vel, self.settings["sprite_scale"])
                     laser.add(self.all_sprites, self.lasers)
+                    self.attack_allowed = False
                 if key == loc.K_h:
                     self.show_hitboxes = True
                 if key == loc.K_ESCAPE:
                         self.game_state = "menu"
+
         keys = pg.key.get_pressed()
         left = False
         right = False
@@ -249,6 +259,24 @@ class Game():
         self.cat.move(left, right)
 
     def screen_update(self):
+        # Timer
+        if self.timer_attack.update(pg.time.get_ticks()):
+            self.attack_allowed = True
+        if self.timer_bird_spawn.update(pg.time.get_ticks()):
+            spawn_side_left = random.randint(0, 1)
+            height_delta = random.randint(0, 200)
+            vel_base = -self.bird_vel - random.randint(0, 150)
+            if spawn_side_left:
+                pos = (0, 50 + height_delta)
+                vel = -vel_base
+                img = self.bird_right_img
+            else:
+                pos = (self.screen.get_size()[0], 50 + height_delta)
+                vel = vel_base
+                img = self.bird_left_img
+            bird = Bird(img, pos, vel, self.settings["sprite_scale"])
+            bird.add(self.all_sprites, self.birds)
+
         # Collision Laser, Bird
         collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
         kills = 0
@@ -401,6 +429,34 @@ class Background(pg.sprite.Sprite):
     def get_right_x(self):
         return self.rect.right
 
+
+class Timer():
+    instances = []
+
+    def __init__(self, duration, clock):
+        self.duration = duration
+        self.clk = clock
+        self.last_time = pg.time.get_ticks()
+        self.paused = False
+        Timer.instances.append(self)
+
+    def pause(self, time):
+        self.paused = True
+        self.pause_amount = time - self.last_time
+
+    def unpause(self, time):
+        self.paused = False
+        self.last_time = time - self.pause_amount
+
+    def update(self, time):
+        if self.paused:
+            return False
+        else:
+            if time >= (self.last_time + self.duration):
+                self.last_time = time
+                return True
+            else:
+                return False
 
 
 if __name__ == "__main__":
