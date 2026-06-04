@@ -1,11 +1,11 @@
 {
-  "fps": 60,
-  "volume": 1,
-  "sprite_scale": 5,
-  "controls": {
-    "left": "a",
-    "right": "d",
-    "attack": "k"
-  },
-  "highscore": 0
+    "fps": 60,
+    "volume": 1,
+    "sprite_scale": 5,
+    "controls": {
+        "left": "a",
+        "right": "d",
+        "attack": "k"
+    },
+    "highscore": 23
 }

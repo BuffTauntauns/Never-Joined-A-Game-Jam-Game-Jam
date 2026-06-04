@@ -1,7 +1,14 @@
 """
-attack countdown visualization
-record presentation menu
-Lieber schick machen und balancing, als jetzt auf krampf funktionen adden!! - ich will den ganzen process üben und fertig werden
+Abgeben bis 15 Uhr!!!
+
+Must haves:
+    - game over screen: exit, play again
+    - Boden schicker
+    - simple balancing - schwerer over time
+    - animation Cat: Laser Eyes, (movement)
+
+Nice to have:
+    - shop: reload speed, movement?
 """
 
 from sys import exit
@@ -33,8 +40,7 @@ class Game():
         self.font_dir = os.path.join(self.base_dir, "fonts")
         self.settings_path = os.path.join(self.src_dir, "settings.json")
 
-        with open(self.settings_path) as file:
-            self.settings = json.load(file)
+        self.read_settings()
         
         # load media
         self.cat_normal_img = self.load_image("images/cat_normal.png", self.settings["sprite_scale"])
@@ -109,6 +115,7 @@ class Game():
 
     def set_init_game_state(self):
         self.game_state = "playing"
+        self.running = True
         self.laser_vel = (0, -350)
         self.bird_vel = 100
         self.score = 0
@@ -118,6 +125,7 @@ class Game():
         self.timer_bird_spawn = Timer(2000, self.clk)
         self.timer_attack = Timer(1500, self.clk)
         self.attack_allowed = True
+        self.lives = 3
         for bird in self.birds:
             bird.kill()
         for laser in self.lasers:
@@ -125,7 +133,7 @@ class Game():
         self.lasers.empty()
 
     def run(self):
-        while True:
+        while self.running:
             if self.game_state == "reset":
                 self.set_init_game_state()
                 self.game_state = "playing"
@@ -146,7 +154,10 @@ class Game():
             elif self.game_state == "game_over":
                 if self.score > self.settings["highscore"]:
                     self.settings["highscore"] = self.score
+                    self.save_settings()
                 self.running = False
+        pg.quit()
+        exit()
 
     def menu_setup(self):
         self.menu_text = []
@@ -306,12 +317,21 @@ class Game():
 
         # sprites
         self.all_sprites.update(self.dt, self.screen_rect)
-        self.birds.update(self.dt, self.screen_rect)
+        for bird in self.birds:
+            if bird.update(self.dt, self.screen_rect) == "killed":
+                self.lives -= 1
+                if self.lives == 0:
+                    self.game_state = "game_over"
+                    continue
 
         # UI
-        self.score_text = self.font_30.render(f"Score: {self.score}", True, pg.color.Color("black"))
-        self.score_rect = self.score_text.get_rect()
-        self.score_rect.topleft = (10, 0)
+        self.stats_text = self.font_30.render(f"Score: {self.score}  |  Lives: {self.lives}", True, pg.color.Color("black"))
+        self.stats_rect = self.stats_text.get_rect()
+        self.stats_rect.topleft = (10, 0)
+
+        self.highscore_text = self.font_30.render(f"Highscore: {self.settings["highscore"]}", True, pg.color.Color("black"))
+        self.highscore_rect = self.highscore_text.get_rect()
+        self.highscore_rect.topright = (self.screen_rect.width - 10, 0)
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
@@ -326,7 +346,8 @@ class Game():
                 laser.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
         
         # UI
-        self.screen.blit(self.score_text, self.score_rect)
+        self.screen.blit(self.stats_text, self.stats_rect)
+        self.screen.blit(self.highscore_text, self.highscore_rect)
 
         pg.display.flip()
     
@@ -345,6 +366,14 @@ class Game():
     def change_game_state(self, new_game_state):
         self.last_game_state = self.game_state
         self.game_state = new_game_state
+
+    def save_settings(self):
+        with open(self.settings_path, "w") as file:
+            json.dump(self.settings, file, indent=4)
+
+    def read_settings(self):
+        with open(self.settings_path, "r") as file:
+            self.settings = json.load(file)
 
 
 class Cat(pg.sprite.Sprite):
@@ -396,7 +425,9 @@ class Bird(pg.sprite.Sprite):
         self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
         if not self.rect.colliderect(screen_rect):
             self.kill()
+            return "killed"
         self.animation_update()
+        return None
     
     def animation_update(self):
         if self.state == "flying":
@@ -423,6 +454,10 @@ class Bird(pg.sprite.Sprite):
     def draw_hitbox(self, screen, color_hitbox, color_rect):
         pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
         pg.draw.rect(screen, color_rect, self.rect, 2)
+    
+    def collision(self, type, obj):
+        if type == "rect":
+            return self.rect.colliderect(obj)
 
 
 class Laser(pg.sprite.Sprite):
