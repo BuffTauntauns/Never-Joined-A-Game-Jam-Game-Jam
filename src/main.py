@@ -40,17 +40,35 @@ class Game():
         self.cat_normal_img = self.load_image("images/cat_normal.png", self.settings["sprite_scale"])
         self.cat_laser_img = self.load_image("images/cat_laser.png", self.settings["sprite_scale"])
         self.laser_beam_img = self.load_image("images/laser.png", self.settings["sprite_scale"])
-        self.bird_left_img = self.load_image("images/bird_left.png", self.settings["sprite_scale"])
-        self.bird_right_img = self.load_image("images/bird_right.png", self.settings["sprite_scale"])
         self.background_img = self.load_image("images/background.png", self.settings["sprite_scale"])
 
+        self.sheet_bird_left = self.load_image("images/bird_sprite_sheet.png", self.settings["sprite_scale"])
+        self.sheet_bird_right = self.load_image("images/bird_mirrored_sprite_sheet.png", self.settings["sprite_scale"])
+
+        self.tile_size = 16 * self.settings["sprite_scale"]
+        self.default_delay = 150
+
+        self.bird_left_img = []
+        for y in range(0, self.sheet_bird_left.get_height(), self.tile_size):
+            for x in range(0, self.sheet_bird_left.get_width(), self.tile_size):
+                image = pg.Surface((self.tile_size, self.tile_size), pg.SRCALPHA)
+                image.blit(self.sheet_bird_left, (0, 0), (x, y, self.tile_size, self.tile_size))
+                self.bird_left_img.append((image, self.default_delay))
+        
+        self.bird_right_img = []
+        for y in range(0, self.sheet_bird_right.get_height(), self.tile_size):
+            for x in range(0, self.sheet_bird_right.get_width(), self.tile_size):
+                image = pg.Surface((self.tile_size, self.tile_size), pg.SRCALPHA)
+                image.blit(self.sheet_bird_right, (0, 0), (x, y, self.tile_size, self.tile_size))
+                self.bird_right_img.append((image, self.default_delay))
+
         # init fonts
-        self.font_10 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 10)
-        self.font_20 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 20)
-        self.font_25 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 25)
-        self.font_30 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 30)
-        self.font_40 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 40)
-        self.font_50 = pg.font.Font(os.path.join(self.font_dir, "Ldfcomicsansbold-zgma.ttf"), 50)
+        self.font_10 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 15)
+        self.font_20 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 25)
+        self.font_25 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 30)
+        self.font_30 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 35)
+        self.font_40 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 45)
+        self.font_50 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 55)
 
         self.menu_setup()
 
@@ -111,20 +129,24 @@ class Game():
             if self.game_state == "reset":
                 self.set_init_game_state()
                 self.game_state = "playing"
-            if self.game_state == "playing":
+            elif self.game_state == "playing":
                 self.change_game_state("playing")
                 if self.last_game_state != "playing":
                     # resume timers
-                    pg.time.set_timer(self.BIRD_SPAWN, 1)
-                    pg.time.set_timer(self.LASER, 1)
+                    self.timer_attack.resume(pg.time.get_ticks())
+                    self.timer_bird_spawn.resume(pg.time.get_ticks())
                 self.playing()
-            if self.game_state == "menu":
+            elif self.game_state == "menu":
                 self.change_game_state("menu")
                 if self.last_game_state != "menu":
                     # pause timers
-                    pg.time.set_timer(self.BIRD_SPAWN, 0)
-                    pg.time.set_timer(self.LASER, 0)
+                    self.timer_attack.pause(pg.time.get_ticks())
+                    self.timer_bird_spawn.pause(pg.time.get_ticks())
                 self.menu()
+            elif self.game_state == "game_over":
+                if self.score > self.settings["highscore"]:
+                    self.settings["highscore"] = self.score
+                self.running = False
 
     def menu_setup(self):
         self.menu_text = []
@@ -224,19 +246,6 @@ class Game():
             if event.type == pg.QUIT:
                 pg.quit()
                 exit()
-            if event.type == self.BIRD_SPAWN:
-                spawn_side_left = random.randint(0, 1)
-                if spawn_side_left:
-                    pos = (0, 100)
-                    vel = self.bird_vel
-                    img = self.bird_right_img
-                else:
-                    pos = (self.screen.get_size()[0], 100)
-                    vel = -self.bird_vel - random.randint(0, 150)
-                    img = self.bird_left_img
-                bird = Bird(img, pos, vel, self.settings["sprite_scale"])
-                bird.add(self.all_sprites, self.birds)
-                pg.time.set_timer(self.BIRD_SPAWN, random.randint(3000, 4000))
             if event.type == pg.KEYDOWN:
                 key = event.key
                 if key == self.controls["attack"] and self.attack_allowed:
@@ -264,18 +273,18 @@ class Game():
             self.attack_allowed = True
         if self.timer_bird_spawn.update(pg.time.get_ticks()):
             spawn_side_left = random.randint(0, 1)
-            height_delta = random.randint(0, 200)
+            height_delta = random.randint(0, 180)
             vel_base = -self.bird_vel - random.randint(0, 150)
             if spawn_side_left:
-                pos = (0, 50 + height_delta)
+                pos = (0, 70 + height_delta)
                 vel = -vel_base
                 img = self.bird_right_img
             else:
-                pos = (self.screen.get_size()[0], 50 + height_delta)
+                pos = (self.screen.get_size()[0], 70 + height_delta)
                 vel = vel_base
                 img = self.bird_left_img
-            bird = Bird(img, pos, vel, self.settings["sprite_scale"])
-            bird.add(self.all_sprites, self.birds)
+            bird = Bird(img, pos, vel, "flying", self.settings["sprite_scale"])
+            bird.add(self.birds)
 
         # Collision Laser, Bird
         collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
@@ -297,16 +306,19 @@ class Game():
 
         # sprites
         self.all_sprites.update(self.dt, self.screen_rect)
+        self.birds.update(self.dt, self.screen_rect)
 
         # UI
         self.score_text = self.font_30.render(f"Score: {self.score}", True, pg.color.Color("black"))
         self.score_rect = self.score_text.get_rect()
-        self.score_rect.topleft = (10, 10)
+        self.score_rect.topleft = (10, 0)
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
         self.backgrounds.draw(self.screen)
         self.all_sprites.draw(self.screen)
+        for bird in self.birds:
+            bird.draw(self.screen)
         if self.show_hitboxes:
             for bird in self.birds:
                 bird.draw_hitbox(self.screen, pg.color.Color("red2"), pg.color.Color("green"))
@@ -363,23 +375,51 @@ class Cat(pg.sprite.Sprite):
 
 class Bird(pg.sprite.Sprite):
     
-    def __init__(self, image, pos, vel, scale):
+    def __init__(self, images_flying, pos, vel, initial_state, scale):
         super().__init__()
-        self.image = image
+        self.images = {
+            "flying": images_flying
+        }
+        self.state = initial_state
+        self.last_state = "no_state"
+        self.animation_update()
         self.pos = pg.Vector2(pos)
-        self.rect: pg.Rect = self.image.get_rect()
+        self.rect: pg.Rect = self.images["flying"][0][0].get_rect()
         self.rect.center = self.pos
         self.vel = vel
         self.hitbox_offset = pg.Vector2(1 * scale, 6 * scale)
         self.hitbox = pg.Rect(self.rect.topleft, (14 * scale, 5 * scale))
-    
+
     def update(self, dt, screen_rect):
         self.pos.x += self.vel *dt
         self.rect.center = self.pos
         self.hitbox.topleft = self.rect.topleft + self.hitbox_offset
         if not self.rect.colliderect(screen_rect):
             self.kill()
+        self.animation_update()
     
+    def animation_update(self):
+        if self.state == "flying":
+            if self.last_state != "flying":
+                self.last_animation = pg.time.get_ticks()
+                self.animation_counter = 0
+                self.image = self.images["flying"][self.animation_counter]
+                self.last_state = "flying"
+        if pg.time.get_ticks() - self.last_animation >= self.image[1]:  # type: ignore
+            if self.animation_counter < len(self.images["flying"]) - 1:
+                self.animation_counter += 1
+            else:
+                self.animation_counter = 0
+            self.image = self.images["flying"][self.animation_counter]
+            self.last_animation = pg.time.get_ticks()
+    
+    def update_state(self, new_state):
+        self.state = new_state
+        self.last_state = self.state
+    
+    def draw(self, surf):
+        surf.blit(self.image[0], self.rect)  # type: ignore
+
     def draw_hitbox(self, screen, color_hitbox, color_rect):
         pg.draw.rect(screen, color_hitbox, self.hitbox, 2)
         pg.draw.rect(screen, color_rect, self.rect, 2)
@@ -444,7 +484,7 @@ class Timer():
         self.paused = True
         self.pause_amount = time - self.last_time
 
-    def unpause(self, time):
+    def resume(self, time):
         self.paused = False
         self.last_time = time - self.pause_amount
 
