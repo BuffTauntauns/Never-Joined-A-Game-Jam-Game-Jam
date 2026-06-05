@@ -1,11 +1,10 @@
 """
-Abgeben bis 15 Uhr!!!
+Abgeben bis 16 Uhr!!!
 
 Must haves (In this order):
     - simple balancing - schwerer over time
     - Boden schicker
     - animation Cat: Laser Eyes, (movement)
-    - animation Bird death
     - SFX
 
 Nice to have:
@@ -52,6 +51,8 @@ class Game():
 
         self.sheet_bird_left = self.load_image("images/bird_sprite_sheet.png", self.settings["sprite_scale"])
         self.sheet_bird_right = self.load_image("images/bird_mirrored_sprite_sheet.png", self.settings["sprite_scale"])
+        self.sheet_bird_left_death = self.load_image("images/bird_left_death_animation_sprite_sheet.png", self.settings["sprite_scale"])
+        self.sheet_bird_right_death = self.load_image("images/bird_right_death_animation_sprite_sheet.png", self.settings["sprite_scale"])
 
         self.tile_size = 16 * self.settings["sprite_scale"]
         self.default_delay = 150
@@ -69,6 +70,20 @@ class Game():
                 image = pg.Surface((self.tile_size, self.tile_size), pg.SRCALPHA)
                 image.blit(self.sheet_bird_right, (0, 0), (x, y, self.tile_size, self.tile_size))
                 self.bird_right_img.append((image, self.default_delay))
+        
+        self.bird_left_death_img = []
+        for y in range(0, self.sheet_bird_left_death.get_height(), self.tile_size):
+            for x in range(0, self.sheet_bird_left_death.get_width(), self.tile_size):
+                image = pg.Surface((self.tile_size, self.tile_size), pg.SRCALPHA)
+                image.blit(self.sheet_bird_left_death, (0, 0), (x, y, self.tile_size, self.tile_size))
+                self.bird_left_death_img.append((image, 50))
+
+        self.bird_right_death_img = []
+        for y in range(0, self.sheet_bird_right_death.get_height(), self.tile_size):
+            for x in range(0, self.sheet_bird_right_death.get_width(), self.tile_size):
+                image = pg.Surface((self.tile_size, self.tile_size), pg.SRCALPHA)
+                image.blit(self.sheet_bird_right_death, (0, 0), (x, y, self.tile_size, self.tile_size))
+                self.bird_right_death_img.append((image, 50))
 
         # init fonts
         self.font_10 = pg.font.Font(os.path.join(self.font_dir, "born2bsporty-fs.otf"), 15)
@@ -87,7 +102,7 @@ class Game():
         self.backgrounds = pg.sprite.Group()
 
         # create cat
-        self.cat = Cat(self.cat_normal_img, (300, 455), vel=200)
+        self.cat = Cat(self.cat_normal_img, self.cat_laser_img, (300, 455), vel=200)
         #self.cat.add(self.all_sprites)
         self.all_sprites.add(self.cat)
 
@@ -267,6 +282,7 @@ class Game():
                     laser = Laser(self.laser_beam_img, cat_pos, self.laser_vel, self.settings["sprite_scale"])
                     laser.add(self.all_sprites, self.lasers)
                     self.attack_allowed = False
+                    self.cat.attack_animation()
                 if key == loc.K_h:
                     self.show_hitboxes = True
                 if key == loc.K_ESCAPE:
@@ -292,19 +308,23 @@ class Game():
             if spawn_side_left:
                 pos = (0, 70 + height_delta)
                 vel = -vel_base
-                img = self.bird_right_img
+                img_flying = self.bird_right_img
+                img_dying = self.bird_right_death_img
             else:
                 pos = (self.screen.get_size()[0], 70 + height_delta)
                 vel = vel_base
-                img = self.bird_left_img
-            bird = Bird(img, pos, vel, "flying", self.settings["sprite_scale"])
+                img_flying = self.bird_left_img
+                img_dying = self.bird_left_death_img
+            bird = Bird(img_flying, img_dying, pos, vel, "flying", self.settings["sprite_scale"])
             bird.add(self.birds)
 
         # Collision Laser, Bird
-        collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, True, self.collision_hitbox)
+        collisions = pg.sprite.groupcollide(self.lasers, self.birds, True, False, self.collision_hitbox)
         kills = 0
         for laser in collisions:
             kills += len(collisions[laser])
+            for bird in collisions[laser]:
+                bird.update_state("dying")
         self.score += kills
 
         # background
@@ -429,15 +449,18 @@ class Game():
 
 class Cat(pg.sprite.Sprite):
     
-    def __init__(self, image, pos, vel):
+    def __init__(self, image_normal, image_laser, pos, vel):
         super().__init__()
-        self.image = image
+        self.images = {"normal": image_normal,
+                       "attacking": image_laser}
+        self.image = self.images["normal"]
         self.pos = pg.Vector2(pos)
         self.rect: pg.Rect = self.image.get_rect()
         self.rect.center = self.pos
         self.left = False
         self.right = False
         self.vel = vel
+        self.state = "normal"
     
     def update(self, dt, screen_rect):
         if self.left:
@@ -445,6 +468,10 @@ class Cat(pg.sprite.Sprite):
         if self.right:
             self.pos.x += self.vel * dt
         self.rect.center = self.pos
+        if self.state == "attacking":
+            if pg.time.get_ticks() - self.last_attack >= 300:
+                self.state = "normal"
+        self.image = self.images[self.state]
 
     def move(self, left, right):
         self.left, self.right = left, right
@@ -452,13 +479,17 @@ class Cat(pg.sprite.Sprite):
     def get_pos(self):
         return self.pos
 
+    def attack_animation(self):
+        self.state = "attacking"
+        self.last_attack = pg.time.get_ticks()
 
 class Bird(pg.sprite.Sprite):
     
-    def __init__(self, images_flying, pos, vel, initial_state, scale):
+    def __init__(self, images_flying, images_dying, pos, vel, initial_state, scale):
         super().__init__()
         self.images = {
-            "flying": images_flying
+            "flying": images_flying,
+            "dying": images_dying
         }
         self.state = initial_state
         self.last_state = "no_state"
@@ -487,12 +518,20 @@ class Bird(pg.sprite.Sprite):
                 self.animation_counter = 0
                 self.image = self.images["flying"][self.animation_counter]
                 self.last_state = "flying"
+        elif self.state == "dying":
+            if self.last_state != "dying":
+                self.last_animation = pg.time.get_ticks()
+                self.animation_counter = 0
+                self.image = self.images["dying"][self.animation_counter]
+                self.last_state = "dying"
         if pg.time.get_ticks() - self.last_animation >= self.image[1]:  # type: ignore
-            if self.animation_counter < len(self.images["flying"]) - 1:
+            if self.animation_counter < len(self.images[self.state]) - 1:
                 self.animation_counter += 1
             else:
                 self.animation_counter = 0
-            self.image = self.images["flying"][self.animation_counter]
+                if self.state == "dying":
+                    self.kill()
+            self.image = self.images[self.state][self.animation_counter]
             self.last_animation = pg.time.get_ticks()
     
     def update_state(self, new_state):
