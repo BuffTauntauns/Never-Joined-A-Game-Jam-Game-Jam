@@ -1,15 +1,3 @@
-"""
-Abgeben bis 16 Uhr!!!
-
-Must haves (In this order):
-    - simple balancing - schwerer over time
-    - Boden schicker
-    - animation Cat: movement
-    - SFX
-    - shop: reload speed, movement?
-    - reload animation/visualization
-"""
-
 from sys import exit
 import os
 import pygame as pg
@@ -27,6 +15,7 @@ class Game():
      
     def __init__(self):
         pg.init()
+        pg.mixer.init()
         self.screen = pg.display.set_mode((800, 600))
         self.screen_rect = self.screen.get_rect()
         pg.display.set_caption("Laser_Cat")
@@ -42,6 +31,8 @@ class Game():
         self.read_settings()
         
         # load media
+        self.bird_scream = pg.mixer.Sound(os.path.join(self.media_dir, "sfx/bird_scream_2.wav"))
+
         self.cat_normal_img = self.load_image("images/cat_normal.png", self.settings["sprite_scale"])
         self.cat_laser_img = self.load_image("images/cat_laser.png", self.settings["sprite_scale"])
         self.laser_beam_img = self.load_image("images/laser.png", self.settings["sprite_scale"])
@@ -360,6 +351,10 @@ class Game():
         # balancing
         time_diff = pg.time.get_ticks() - self.start_time
         self.bird_vel = self.bird_base_vel + (time_diff / 1000)
+
+        # sound
+        if kills:
+            self.bird_scream.play()
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
