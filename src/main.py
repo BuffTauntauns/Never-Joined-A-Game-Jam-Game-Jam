@@ -4,10 +4,8 @@ Abgeben bis 16 Uhr!!!
 Must haves (In this order):
     - simple balancing - schwerer over time
     - Boden schicker
-    - animation Cat: Laser Eyes, (movement)
+    - animation Cat: movement
     - SFX
-
-Nice to have:
     - shop: reload speed, movement?
     - reload animation/visualization
 """
@@ -119,6 +117,8 @@ class Game():
 
         self.show_hitboxes = False
 
+        self.bird_base_vel = 100
+
         self.dt = 1/60
         self.event_counter = 1
 
@@ -134,7 +134,7 @@ class Game():
         self.game_state = "playing"
         self.running = True
         self.laser_vel = (0, -350)
-        self.bird_vel = 100
+        self.bird_vel = self.bird_base_vel
         self.score = 0
         self.background_vel = -20
         self.BIRD_SPAWN = pg.USEREVENT + self.event_counter
@@ -143,6 +143,7 @@ class Game():
         self.timer_attack = Timer(1500, self.clk)
         self.attack_allowed = True
         self.lives = 3
+        self.start_time = pg.time.get_ticks()
         for bird in self.birds:
             bird.kill()
         for laser in self.lasers:
@@ -304,7 +305,7 @@ class Game():
         if self.timer_bird_spawn.update(pg.time.get_ticks()):
             spawn_side_left = random.randint(0, 1)
             height_delta = random.randint(0, 180)
-            vel_base = -self.bird_vel - random.randint(0, 150)
+            vel_base = -self.bird_vel - random.randint(0, int(self.bird_vel * 1.5))
             if spawn_side_left:
                 pos = (0, 70 + height_delta)
                 vel = -vel_base
@@ -355,6 +356,10 @@ class Game():
         self.highscore_text = self.font_30.render(f"Highscore: {self.settings["highscore"]}", True, pg.color.Color("black"))
         self.highscore_rect = self.highscore_text.get_rect()
         self.highscore_rect.topright = (self.screen_rect.width - 10, 0)
+
+        # balancing
+        time_diff = pg.time.get_ticks() - self.start_time
+        self.bird_vel = self.bird_base_vel + (time_diff / 1000)
 
     def screen_draw(self):
         self.screen.fill(pg.Color("aqua"))
@@ -446,6 +451,7 @@ class Game():
         for text in self.game_over_texts:
             self.game_over_surf.blit(text[0], text[1])
         self.screen.blit(self.game_over_surf, self.game_over_rect)
+
 
 class Cat(pg.sprite.Sprite):
     
