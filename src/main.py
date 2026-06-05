@@ -1,14 +1,16 @@
 """
 Abgeben bis 15 Uhr!!!
 
-Must haves:
-    - game over screen: exit, play again
-    - Boden schicker
+Must haves (In this order):
     - simple balancing - schwerer over time
+    - Boden schicker
     - animation Cat: Laser Eyes, (movement)
+    - animation Bird death
+    - SFX
 
 Nice to have:
     - shop: reload speed, movement?
+    - reload animation/visualization
 """
 
 from sys import exit
@@ -147,15 +149,22 @@ class Game():
             elif self.game_state == "menu":
                 self.change_game_state("menu")
                 if self.last_game_state != "menu":
-                    # pause timers
+                    self.menu_setup
                     self.timer_attack.pause(pg.time.get_ticks())
                     self.timer_bird_spawn.pause(pg.time.get_ticks())
                 self.menu()
             elif self.game_state == "game_over":
-                if self.score > self.settings["highscore"]:
-                    self.settings["highscore"] = self.score
-                    self.save_settings()
-                self.running = False
+                if self.last_game_state != "game_over":
+                    self.game_over_setup()
+                    self.timer_attack.pause(pg.time.get_ticks())
+                    self.timer_bird_spawn.pause(pg.time.get_ticks())
+                    if self.settings["highscore"] < self.score:
+                        self.settings["highscore"] = self.score
+                        self.save_settings()
+                self.change_game_state("game_over")
+                self.game_over()
+            pg.display.flip()
+            self.dt = self.clk.tick(self.settings["fps"]) / 1000
         pg.quit()
         exit()
 
@@ -202,61 +211,55 @@ class Game():
         self.menu_text.append(self.text_exit_game)
     
     def menu(self):
-        while self.game_state == "menu":
-            self.text_control_left_button = self.get_text(self.font_20, self.settings["controls"]["left"], pg.color.Color("black"), (0, 120))
-            self.text_control_left_button[1].right = self.menu_size[0] - 50
+        self.text_control_left_button = self.get_text(self.font_20, self.settings["controls"]["left"], pg.color.Color("black"), (0, 120))
+        self.text_control_left_button[1].right = self.menu_size[0] - 50
 
-            self.text_control_right_button = self.get_text(self.font_20, self.settings["controls"]["right"], pg.color.Color("black"), (0, 150))
-            self.text_control_right_button[1].right = self.menu_size[0] - 50
+        self.text_control_right_button = self.get_text(self.font_20, self.settings["controls"]["right"], pg.color.Color("black"), (0, 150))
+        self.text_control_right_button[1].right = self.menu_size[0] - 50
 
-            self.text_control_attack_button = self.get_text(self.font_20, self.settings["controls"]["attack"], pg.color.Color("black"), (0, 180))
-            self.text_control_attack_button[1].right = self.menu_size[0] - 50
+        self.text_control_attack_button = self.get_text(self.font_20, self.settings["controls"]["attack"], pg.color.Color("black"), (0, 180))
+        self.text_control_attack_button[1].right = self.menu_size[0] - 50
 
-            # events
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    pg.quit()
-                    exit()
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    pos = pg.Vector2(pg.mouse.get_pos()) - pg.Vector2(self.menu_surf_rect.topleft)
-                    if self.text_resume[1].collidepoint(pos):
-                        self.game_state = "playing"
-                    if self.text_restart[1].collidepoint(pos):
-                        self.game_state = "reset"
-                    if self.text_exit_game[1].collidepoint(pos):
-                        pg.quit()
-                        exit()
-                    if self.text_resume[1].collidepoint(pos):
-                        self.game_state = "playing"
-                if event.type == pg.KEYDOWN:
-                    key = event.key
-                    if key == loc.K_ESCAPE:
-                        self.game_state = "playing"
-            
-            # draw
-            self.menu_surf.fill(pg.color.Color("chocolate3"))
-            pg.draw.rect(self.menu_surf, pg.color.Color("chocolate4"), (0, 0, self.menu_surf_rect.width, self.menu_surf_rect.height), 15)
-            for text in self.menu_text:
-                self.menu_surf.blit(text[0], text[1])
-            self.menu_surf.blit(self.text_control_left_button[0], self.text_control_left_button[1])
-            self.menu_surf.blit(self.text_control_right_button[0], self.text_control_right_button[1])
-            self.menu_surf.blit(self.text_control_attack_button[0], self.text_control_attack_button[1])
-            self.screen.blit(self.menu_surf, self.menu_surf_rect)
-            pg.display.flip()
-            self.clk.tick(self.settings["fps"])
-    
-    def playing(self):
-        while self.game_state == "playing":
-            self.handle_inputs()
-            self.screen_update()
-            self.screen_draw()
-            self.dt = self.clk.tick(self.settings["fps"]) / 1000
-    
-    def handle_inputs(self):
+        # events
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
                 exit()
+            if event.type == pg.MOUSEBUTTONDOWN:
+                pos = pg.Vector2(pg.mouse.get_pos()) - pg.Vector2(self.menu_surf_rect.topleft)
+                if self.text_resume[1].collidepoint(pos):
+                    self.game_state = "playing"
+                if self.text_restart[1].collidepoint(pos):
+                    self.game_state = "reset"
+                if self.text_exit_game[1].collidepoint(pos):
+                    pg.quit()
+                    exit()
+                if self.text_resume[1].collidepoint(pos):
+                    self.game_state = "playing"
+            if event.type == pg.KEYDOWN:
+                key = event.key
+                if key == loc.K_ESCAPE:
+                    self.game_state = "playing"
+        
+        # draw
+        self.menu_surf.fill(pg.color.Color("chocolate3"))
+        pg.draw.rect(self.menu_surf, pg.color.Color("chocolate4"), (0, 0, self.menu_surf_rect.width, self.menu_surf_rect.height), 15)
+        for text in self.menu_text:
+            self.menu_surf.blit(text[0], text[1])
+        self.menu_surf.blit(self.text_control_left_button[0], self.text_control_left_button[1])
+        self.menu_surf.blit(self.text_control_right_button[0], self.text_control_right_button[1])
+        self.menu_surf.blit(self.text_control_attack_button[0], self.text_control_attack_button[1])
+        self.screen.blit(self.menu_surf, self.menu_surf_rect)
+    
+    def playing(self):
+        self.handle_inputs()
+        self.screen_update()
+        self.screen_draw()
+    
+    def handle_inputs(self):
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                self.running = False
             if event.type == pg.KEYDOWN:
                 key = event.key
                 if key == self.controls["attack"] and self.attack_allowed:
@@ -348,8 +351,6 @@ class Game():
         # UI
         self.screen.blit(self.stats_text, self.stats_rect)
         self.screen.blit(self.highscore_text, self.highscore_rect)
-
-        pg.display.flip()
     
     def bind_key(self, name):
         return pg.key.key_code(name)
@@ -375,6 +376,56 @@ class Game():
         with open(self.settings_path, "r") as file:
             self.settings = json.load(file)
 
+    def game_over_setup(self):
+        self.game_over_size = (400, 400)
+        self.game_over_surf = pg.Surface(self.game_over_size)
+        self.game_over_rect = self.game_over_surf.get_rect()
+        self.game_over_rect.center = self.screen_rect.center
+
+        self.game_over_texts = []
+
+        self.text_game_over = self.get_text(self.font_40, "Game Over!", pg.color.Color("red4"), (0, 0))
+        self.text_game_over[1].top = 20
+        self.text_game_over[1].centerx = self.game_over_size[0] / 2
+        self.game_over_texts.append(self.text_game_over)
+
+        self.text_score = self.get_text(self.font_25, f"Your score was: {self.score}", pg.color.Color("black"), (0, 0))
+        self.text_score[1].top = 100
+        self.text_score[1].centerx = self.game_over_size[0] / 2
+        self.game_over_texts.append(self.text_score)
+
+        self.text_score = self.get_text(self.font_25, f"Highscore: {self.settings["highscore"]}", pg.color.Color("black"), (0, 0))
+        self.text_score[1].top = 150
+        self.text_score[1].centerx = self.game_over_size[0] / 2
+        self.game_over_texts.append(self.text_score)
+
+        self.text_exit_game = self.get_text(self.font_25, "Exit Game", pg.color.Color("red4"), (0, 0))
+        self.text_exit_game[1].bottom = self.game_over_size[1] - 20
+        self.text_exit_game[1].right = self.game_over_size[0] - 30
+        self.game_over_texts.append(self.text_exit_game)
+
+        self.text_new_game = self.get_text(self.font_25, "New Game", pg.color.Color("green4"), (0, 0))
+        self.text_new_game[1].bottom = self.game_over_size[1] - 20
+        self.text_new_game[1].left = 30
+        self.game_over_texts.append(self.text_new_game)
+
+    def game_over(self):
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                self.running = False
+            if event.type == pg.MOUSEBUTTONDOWN:
+                pos = pg.Vector2(pg.mouse.get_pos()) - pg.Vector2(self.game_over_rect.topleft)
+                if self.text_new_game[1].collidepoint(pos):
+                    self.game_state = "reset"
+                if self.text_exit_game[1].collidepoint(pos):
+                    self.running = False
+        
+        # draw
+        self.game_over_surf.fill(pg.color.Color("chocolate3"))
+        pg.draw.rect(self.game_over_surf, pg.color.Color("chocolate4"), (0, 0, self.game_over_rect.width, self.game_over_rect.height), 15)
+        for text in self.game_over_texts:
+            self.game_over_surf.blit(text[0], text[1])
+        self.screen.blit(self.game_over_surf, self.game_over_rect)
 
 class Cat(pg.sprite.Sprite):
     
